@@ -23,45 +23,66 @@ def calculate_coords(values):
   return (x0, top, x1, bottom)
 
 
+def get_default(index, is_new_version):
+  subset = 'new' if is_new_version else 'old'
+  values = default_values[subset]
+
+
+def get_version(s):
+  if (len(s) == 1): return
+  temp = s[-1].strip()
+  return temp > 2018
+
+
+def generate_row(file_name, key, s):
+  if (len(s) > 1):
+    temp = s[0].split('.', 1)
+    index = temp[0]
+    field = temp[1].strip()
+    pre_value = ''.join(s[-1].split())
+    value = pre_value if pre_value.isnumeric() else s[-1].strip()
+    return [file_name, index, key, field, value]
+
+  temp = s[0].split()
+  index = temp[0].strip('.')
+  if(temp[-1].isnumeric()):
+    value = ''
+    return [file_name, index, key, value, temp[-1]]
+  else:
+    return [file_name, index, key, temp[-1], '']
+  
 
 def get_boxes(file):
-    f = io.BytesIO(file.getvalue())
-    col_name = file.filename
-    partial = pd.DataFrame({
-       'filename': [],
-       'index':[], 
-       'section': [], 
-       'field': [], 
-       'value': [],
-    })
-
-    with pdfplumber.open(f, laparams = { "line_overlap": 0.7, "all_texts": True }) as pdf:
-        for page in pdf.pages:
-            for coords in document_coords['renta']:
-              crop_coords = calculate_coords(coords)
-              t = page.crop(crop_coords, relative=True)
-              s = t.extract_text(keep_blank_chars=False, layout=True).splitlines()
-
-              if (len(s) == 1):
-                 temp = s[0].split()
-                 if(temp[-1].isnumeric()):
-                    partial.loc[len(partial)] = [col_name, temp[0].strip(), '', '', temp[-1]]
-                 else:
-                    partial.loc[len(partial)] = [col_name, temp[0].strip('.'), '', temp[-1], '']
-              else:
-                 temp = s[0].split('.', 1)
-                 pre_value = ''.join(s[-1].split())
-                 value = pre_value if pre_value.isnumeric() else s[-1].strip()
-                 partial.loc[len(partial)] = [col_name, temp[0], '', temp[1].strip(), value]
-    return partial
+  f = io.BytesIO(file.getvalue())
+  file_name = file.filename
+  partial = pd.DataFrame({
+    'filename': [],
+    'index':[], 
+    'section': [], 
+    'field': [], 
+    'value': [],
+  })
+  with pdfplumber.open(f, laparams = { "line_overlap": 0.7, "all_texts": True }) as pdf:
+    for page in pdf.pages:
+      initial = page.crop((50.71, 59.91, 100.71, 70.0), relative=True)
+      temp = int(''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip())
+      year = 'new' if temp > 2019 else 'old'
+      for key, value in document_coords['renta'][year].items():
+        for coords in value:
+          crop_coords = calculate_coords(coords)
+          t = page.crop(crop_coords, relative=True)
+          s = t.extract_text(keep_blank_chars=False, layout=True).splitlines()
+          partial.loc[len(partial)] = generate_row(file_name, key, s)
+  return partial
         
+
 def handle_multiple(files):
-    df = pd.DataFrame()
-    for file in files:
-      partial = get_boxes(file)
-      df = pd.concat([df, partial])
-    print(df)
-    return 'done'
+  df = pd.DataFrame()
+  for file in files:
+    partial = get_boxes(file)
+    df = pd.concat([df, partial])
+  print(df)
+  return 'done'
    
    
 def crop_doc(file):
