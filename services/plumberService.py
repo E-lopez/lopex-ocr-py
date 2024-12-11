@@ -4,6 +4,7 @@ import pandas as pd
 from pdfplumber.utils import extract_text, get_bbox_overlap, obj_to_bbox
 import tabulate
 from models.coords.coords_dict import document_coords
+from models.defaults.defaults_dict import document_defaults
 
 def parse_with_plumber(file):
   f = io.BytesIO(file.getvalue())
@@ -23,9 +24,12 @@ def calculate_coords(values):
   return (x0, top, x1, bottom)
 
 
-def get_default(index, is_new_version):
-  subset = 'new' if is_new_version else 'old'
-  values = default_values[subset]
+def get_default(document, index, version):
+  try:
+    default = document_defaults[document][version][index]
+    return default
+  except KeyError:
+    return 'n/a'
 
 
 def get_version(s):
@@ -34,7 +38,7 @@ def get_version(s):
   return temp > 2018
 
 
-def generate_row(file_name, key, s):
+def generate_row(file_name, key, s, document, version):
   if (len(s) > 1):
     temp = s[0].split('.', 1)
     index = temp[0]
@@ -46,8 +50,8 @@ def generate_row(file_name, key, s):
   temp = s[0].split()
   index = temp[0].strip('.')
   if(temp[-1].isnumeric()):
-    value = ''
-    return [file_name, index, key, value, temp[-1]]
+    field = get_default(document, index, version)
+    return [file_name, index, key, field, temp[-1]]
   else:
     return [file_name, index, key, temp[-1], '']
   
@@ -65,14 +69,13 @@ def get_boxes(file):
   with pdfplumber.open(f, laparams = { "line_overlap": 0.7, "all_texts": True }) as pdf:
     for page in pdf.pages:
       initial = page.crop((50.71, 59.91, 100.71, 70.0), relative=True)
-      temp = int(''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip())
-      year = 'new' if temp > 2019 else 'old'
-      for key, value in document_coords['renta'][year].items():
+      version = ''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip()
+      for key, value in document_coords['renta'][version].items():
         for coords in value:
           crop_coords = calculate_coords(coords)
           t = page.crop(crop_coords, relative=True)
           s = t.extract_text(keep_blank_chars=False, layout=True).splitlines()
-          partial.loc[len(partial)] = generate_row(file_name, key, s)
+          partial.loc[len(partial)] = generate_row(file_name, key, s, 'renta', version)
   return partial
         
 
