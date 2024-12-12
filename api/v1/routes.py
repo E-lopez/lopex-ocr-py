@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request, flash, redirect
 from services.parserService import parse_document_service, parse_with_miner, show_ltitem_hierarchy
 import requests
 
-from services.plumberService import crop_doc, get_boxes, handle_multiple, parse_with_plumber
+from services.extract_service import crop_doc, get_boxes, handle_multiple, parse_with_plumber
 
 routes = Blueprint('routes', __name__, url_prefix='/ocr')
 

@@ -1,7 +1,9 @@
 import os
 import py_eureka_client.eureka_client as eureka_client
 from flask import Flask
-from routes.routes import routes
+
+from api.v1.routes import routes
+
 
 app = Flask(__name__)
 app.register_blueprint(routes)

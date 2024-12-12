@@ -5,6 +5,8 @@ from pdfplumber.utils import extract_text, get_bbox_overlap, obj_to_bbox
 import tabulate
 from models.coords.coords_dict import document_coords
 from models.defaults.defaults_dict import document_defaults
+from utils.functions import calculate_coords, get_default
+from utils.row_parser import RowParser
 
 def parse_with_plumber(file):
   f = io.BytesIO(file.getvalue())
@@ -14,28 +16,6 @@ def parse_with_plumber(file):
     im = first_page.to_image(resolution=320)
     im.reset().draw_rects(first_page.chars)
     im.show()
-
-
-def calculate_coords(values):
-  x0 = values[0]
-  top = values[1]
-  x1 = x0 + values[2]
-  bottom = top + values[3]
-  return (x0, top, x1, bottom)
-
-
-def get_default(document, index, version):
-  try:
-    default = document_defaults[document][version][index]
-    return default
-  except KeyError:
-    return 'n/a'
-
-
-def get_version(s):
-  if (len(s) == 1): return
-  temp = s[-1].strip()
-  return temp > 2018
 
 
 def generate_row(file_name, key, s, document, version):
@@ -75,7 +55,8 @@ def get_boxes(file):
           crop_coords = calculate_coords(coords)
           t = page.crop(crop_coords, relative=True)
           s = t.extract_text(keep_blank_chars=False, layout=True).splitlines()
-          partial.loc[len(partial)] = generate_row(file_name, key, s, 'renta', version)
+          parser = RowParser()
+          partial.loc[len(partial)] = parser.use_parser(file_name, key, s, 'renta', version)
   return partial
         
 
@@ -84,8 +65,7 @@ def handle_multiple(files):
   for file in files:
     partial = get_boxes(file)
     df = pd.concat([df, partial])
-  print(df)
-  return 'done'
+  return df.to_string()
    
    
 def crop_doc(file):
