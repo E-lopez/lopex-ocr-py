@@ -7,6 +7,7 @@ from models.coords.coords_dict import document_coords
 from models.defaults.defaults_dict import document_defaults
 from utils.functions import calculate_coords, get_default
 from utils.row_parser import RowParser
+from utils.row_parser_method_map import get_row_parser_method_name
 
 def parse_with_plumber(file):
   f = io.BytesIO(file.getvalue())
@@ -51,12 +52,11 @@ def get_boxes(file):
       initial = page.crop((50.71, 59.91, 100.71, 70.0), relative=True)
       version = ''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip()
       for key, value in document_coords['renta'][version].items():
+        parser = RowParser(get_row_parser_method_name(key))
         for coords in value:
           crop_coords = calculate_coords(coords)
-          t = page.crop(crop_coords, relative=True)
-          s = t.extract_text(keep_blank_chars=False, layout=True).splitlines()
-          parser = RowParser()
-          partial.loc[len(partial)] = parser.use_parser(file_name, key, s, 'renta', version)
+          partial.loc[len(partial)] = parser.use_parser(file_name, key, page, crop_coords, 'renta', version)
+    page.close()
   return partial
         
 

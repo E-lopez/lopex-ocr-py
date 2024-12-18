@@ -1,70 +1,73 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+import locale
 from typing import List
 from models.defaults.defaults_dict import document_defaults
 from utils.functions import get_default
+import re
+
+loc = locale.getlocale()
+locale.setlocale(locale.LC_MONETARY, loc)
 
 
 class RowParser():
-  def __init__(self, strategy: Strategy = None) -> None:
-    if strategy is not None:
-        self._strategy = strategy
-    else:
-        self._strategy = DefaultParser()
+  def __init__(self, strategy = None) -> None:
+    self._strategy = self.select_parser(strategy)
+
+  def select_parser(self, strategy):
+    match strategy:
+      case 'table_row':
+        return TableRowsParser()
+      case _:
+        return DefaultParser()
 
   def set_parser(self, strategy: Strategy):
     self._strategy = strategy
 
   def use_parser(self, *args):
-    self._strategy.parse_row(*args)
+    return self._strategy.parse_row(*args)
 
 
 class Strategy(ABC):
   @abstractmethod
-  def parse_row(self, data: List):
+  def parse_row(self, *args: List):
     pass
 
 
 class DefaultParser(Strategy):
-  def parse_row(self, *args) -> List:
-    s, key, document, version, file_name = args
+  def parse_row(self, *args):
+    file_name, key, page, crop_coords, document, version = args
 
-    if (len(s) > 1):
-      temp = s[0].split('.', 1)
-      index = temp[0]
-      field = temp[1].strip()
-      pre_value = ''.join(s[-1].split())
-      value = pre_value if pre_value.isnumeric() else s[-1].strip()
-      return [file_name, index, key, field, value]
+    t = page.crop(crop_coords, relative=True)
+    s = t.extract_text(keep_blank_chars=False, layout=False, x_tolerance=7)
+    label_holder = ''.join(filter(lambda x: x.isalpha() or x.isspace(), re.findall(r'\D', s))).strip()
+    numeric = re.findall(r'\d+', s)
+    index = numeric[0]
+    sep = '.' if key != 'informacion_general' else ''
+    value = sep.join(numeric[1:])
+    label = label_holder if label_holder else get_default(document, index, version)
 
-    temp = s[0].split()
-    index = temp[0].strip('.')
-    if(temp[-1].isnumeric()):
-      field = get_default(document, index, version)
-      return [file_name, index, key, field, temp[-1]]
-    else:
-      return [file_name, index, key, temp[-1], '']
+    return [file_name, index, key, label, value]
 
 
 class TableRowsParser(Strategy):
   def parse_row(self, *args) -> List:
-    s, key, document, version, file_name = args
+    file_name, key, page, crop_coords, document, version = args
 
-    print("STRATEGY B")
+    t = page.crop(crop_coords, relative=True)
+    s = t.extract_text(keep_blank_chars=False, layout=False, x_tolerance=7)
+    label_holder = ''.join(filter(lambda x: x.isalpha() or x.isspace(), re.findall(r'\D', s))).strip()
+    numeric = re.findall(r'\d+',s.replace(',', ''))
 
-    if (len(s) > 1):
-      temp = s[0].split('.', 1)
-      index = temp[0]
-      field = temp[1].strip()
-      pre_value = ''.join(s[-1].split())
-      value = pre_value if pre_value.isnumeric() else s[-1].strip()
-      return [file_name, index, key, field, value]
-
-    temp = s[0].split()
-    index = temp[0].strip('.')
-    if(temp[-1].isnumeric()):
-      field = get_default(document, index, version)
-      return [file_name, index, key, field, temp[-1]]
+    if(len(numeric) > 1):
+      value = locale.currency(int(numeric[1]))
+      index = numeric[0]
     else:
-      return [file_name, index, key, temp[-1], '']
+      test = int(numeric[0]) == 0 or len(numeric[0]) > 2
+      value = locale.currency(int(numeric[0])) if test else 'n/a'
+      index = '00' if test else numeric[0]
+    
+    label = label_holder if label_holder else get_default(document, index, version)
+
+    return [file_name, index, key, label, value]
        
