@@ -13,3 +13,4 @@ decla_renta_defaults = {
     '50': '2022'
   },
 }
+

@@ -54,7 +54,7 @@ def get_boxes(file):
       for key, value in document_coords['renta'][version].items():
         parser = RowParser(get_row_parser_method_name(key))
         for coords in value:
-          crop_coords = calculate_coords(coords)
+          crop_coords = calculate_coords(coords, key)
           partial.loc[len(partial)] = parser.use_parser(file_name, key, page, crop_coords, 'renta', version)
     page.close()
   return partial
