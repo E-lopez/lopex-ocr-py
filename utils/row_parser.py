@@ -56,8 +56,11 @@ class TableRowsParser(Strategy):
     file_name, key, page, crop_coords, document, version = args
     t = page.crop(crop_coords, relative=True)
     s = t.extract_text(keep_blank_chars=False, layout=False, x_tolerance=7)
+    parsed_key = re.sub(r'\d+', '', key)
     label_holder = ''.join(filter(lambda x: x.isalpha() or x.isspace(), re.findall(r'\D', s))).strip()
     numeric = re.findall(r'\d+',s.replace(',', ''))
+
+    print(">>>>", parsed_key)
 
     if(len(numeric) > 1):
       value = locale.currency(int(numeric[1]))
@@ -69,5 +72,5 @@ class TableRowsParser(Strategy):
     
     label = label_holder if label_holder else get_default(document, index, version)
 
-    return [file_name, index, key, label, value]
+    return [file_name, index, parsed_key, label, value]
        
