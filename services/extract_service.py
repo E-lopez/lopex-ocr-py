@@ -50,7 +50,8 @@ def get_boxes(file):
   with pdfplumber.open(f, laparams = { "line_overlap": 0.7, "all_texts": True }) as pdf:
     for page in pdf.pages:
       initial = page.crop((50.71, 59.91, 100.71, 70.0), relative=True)
-      version = ''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip()
+      year = ''.join(initial.extract_text(keep_blank_chars=False, layout=True).split()).strip()
+      version = 'latest' if int(year) > 2021 else year
       for key, value in document_coords['renta'][version].items():
         parser = RowParser(get_row_parser_method_name(key))
         for coords in value:

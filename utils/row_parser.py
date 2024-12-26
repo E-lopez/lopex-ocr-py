@@ -33,17 +33,17 @@ class Strategy(ABC):
     pass
 
 
-isCharIndexList = [7,8,9,10,11]
 class DefaultParser(Strategy):
   def parse_row(self, *args):
     file_name, key, page, crop_coords, document, version = args
     t = page.crop(crop_coords, relative=True)
     s = t.extract_text(keep_blank_chars=False, layout=False, x_tolerance=7)
+    is_char_index_list = [7,8,9,10,11]
 
     label_holder = ''.join(filter(lambda x: x.isalpha() or x.isspace(), re.findall(r'\D', s))).strip()
     numeric = re.findall(r'\d+', s)
     index = numeric[0]
-    is_char = int(index) in isCharIndexList
+    is_char = int(index) in is_char_index_list
     char_label = '' if label_holder.split('\n')[-1] == label_holder else label_holder.split('\n')[-1]
     value = char_label if is_char else ''.join(numeric[1:])
     label = label_holder if label_holder else get_default(document, index, version)
@@ -58,9 +58,7 @@ class TableRowsParser(Strategy):
     s = t.extract_text(keep_blank_chars=False, layout=False, x_tolerance=7)
     parsed_key = re.sub(r'\d+', '', key)
     label_holder = ''.join(filter(lambda x: x.isalpha() or x.isspace(), re.findall(r'\D', s))).strip()
-    numeric = re.findall(r'\d+',s.replace(',', ''))
-
-    print(">>>>", parsed_key)
+    numeric = re.findall(r'\d+', s.replace(',', ''))
 
     if(len(numeric) > 1):
       value = locale.currency(int(numeric[1]))
